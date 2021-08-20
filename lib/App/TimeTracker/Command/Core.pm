@@ -15,6 +15,7 @@ use File::Copy qw(move);
 use File::Find::Rule;
 use Data::Dumper;
 use Text::Table;
+use List::Util qw(max);
 use DateTime;
 
 sub cmd_start {
@@ -401,11 +402,12 @@ sub _print_report_tree {
     $sum += $data->{'_kids'}  if $data->{'_kids'};
     return unless $sum;
 
-    my $format = "%- 20s % 12s";
+    my $project_width = max 20, map { length } keys %$projects;
+    my $format = "%- ${project_width}s % 12s";
 
     say sprintf(
         $padding . $format,
-        substr( $project, 0, 20 ),
+        substr( $project, 0, $project_width ),
         $self->beautify_seconds($sum)
     );
     if ( my $detail = $self->detail ) {
