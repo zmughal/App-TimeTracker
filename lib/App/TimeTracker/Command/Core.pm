@@ -489,10 +489,12 @@ EOCONFIG
     my $projects_file = $self->home->file('projects.json');
     my $coder         = JSON::XS->new->utf8->pretty->canonical->relaxed;
     if ( -e $projects_file ) {
-        my $projects = $coder->decode( scalar $projects_file->slurp );
+        my $in_contents = scalar $projects_file->slurp;
+        my $projects = $coder->decode( $in_contents );
         $projects->{$project} =
             $cwd->file('.tracker.json')->absolute->stringify;
-        $projects_file->spew( $coder->encode($projects) );
+        my $out_contents = $coder->encode($projects);
+        $projects_file->spew( $out_contents ) if $in_contents ne $out_contents;
     }
 
     say "Set up this directory for time-tracking via file .tracker.json";
