@@ -15,6 +15,7 @@ use File::Copy qw(move);
 use File::Find::Rule;
 use Data::Dumper;
 use Text::Table;
+use List::Util qw(max);
 use DateTime;
 
 sub cmd_start {
@@ -292,6 +293,16 @@ sub cmd_report {
             }
         }
 
+        if ( $self->group eq 'day' ) {
+            my $day_num = $task->start->day_of_year;
+
+            $report->{$day_num}{'_total'} += $time;
+            $report->{$day_num}{$project}{time} += $time;
+            unless ($report->{$day_num}{'_start'}) {
+                $report->{$day_num}{'_start'} = $task->start->dmy('.');
+            }
+        }
+
         if ( $self->group eq 'project' ) {
             $report->{$project}{'_total'} += $time;
 
@@ -372,6 +383,28 @@ sub cmd_report {
 
     }
 
+    if ( $self->group eq 'day' ) {
+        my $s      = \' | ';
+        my @header = map { ucfirst($_), $s } qw(day date time);
+        pop(@header);
+        my $table = Text::Table->new(@header);
+
+        foreach my $day ( sort keys %$report ) {
+            my @row;
+
+            push @row, $day;
+            push @row, $report->{$day}->{_start};
+            push @row, $self->beautify_seconds( $report->{$day}->{_total} );
+
+            $table->add(@row);
+        }
+
+        print $table->title;
+        print $table->rule( '-', '+' );
+        print $table->body;
+
+    }
+
     printf( $format, 'total', $self->beautify_seconds($total) );
 }
 
@@ -401,11 +434,12 @@ sub _print_report_tree {
     $sum += $data->{'_kids'}  if $data->{'_kids'};
     return unless $sum;
 
-    my $format = "%- 20s % 12s";
+    my $project_width = max 20, map { length } keys %$projects;
+    my $format = "%- ${project_width}s % 12s";
 
     say sprintf(
         $padding . $format,
-        substr( $project, 0, 20 ),
+        substr( $project, 0, $project_width ),
         $self->beautify_seconds($sum)
     );
     if ( my $detail = $self->detail ) {
@@ -489,10 +523,12 @@ EOCONFIG
     my $projects_file = $self->home->file('projects.json');
     my $coder         = JSON::XS->new->utf8->pretty->canonical->relaxed;
     if ( -e $projects_file ) {
-        my $projects = $coder->decode( scalar $projects_file->slurp );
+        my $in_contents = scalar $projects_file->slurp;
+        my $projects = $coder->decode( $in_contents );
         $projects->{$project} =
             $cwd->file('.tracker.json')->absolute->stringify;
-        $projects_file->spew( $coder->encode($projects) );
+        my $out_contents = $coder->encode($projects);
+        $projects_file->spew( $out_contents ) if $in_contents ne $out_contents;
     }
 
     say "Set up this directory for time-tracking via file .tracker.json";
@@ -654,10 +690,10 @@ sub _load_attribs_report {
     );
     $meta->add_attribute(
         'group' => {
-            isa           => enum( [qw(project week)] ),
+            isa           => enum( [qw(project week day)] ),
             is            => 'ro',
             default       => 'project',
-            documentation => 'Genereta Report by week or project.'
+            documentation => 'Genereta Report by day, week, or project.'
         }
     );
 }
