@@ -292,6 +292,16 @@ sub cmd_report {
             }
         }
 
+        if ( $self->group eq 'day' ) {
+            my $day_num = $task->start->day_of_year;
+
+            $report->{$day_num}{'_total'} += $time;
+            $report->{$day_num}{$project}{time} += $time;
+            unless ($report->{$day_num}{'_start'}) {
+                $report->{$day_num}{'_start'} = $task->start->dmy('.');
+            }
+        }
+
         if ( $self->group eq 'project' ) {
             $report->{$project}{'_total'} += $time;
 
@@ -362,6 +372,28 @@ sub cmd_report {
             push @row, $report->{$week}->{_start};
             push @row, $report->{$week}->{_end};
             push @row, $self->beautify_seconds( $report->{$week}->{_total} );
+
+            $table->add(@row);
+        }
+
+        print $table->title;
+        print $table->rule( '-', '+' );
+        print $table->body;
+
+    }
+
+    if ( $self->group eq 'day' ) {
+        my $s      = \' | ';
+        my @header = map { ucfirst($_), $s } qw(day date time);
+        pop(@header);
+        my $table = Text::Table->new(@header);
+
+        foreach my $day ( sort keys %$report ) {
+            my @row;
+
+            push @row, $day;
+            push @row, $report->{$day}->{_start};
+            push @row, $self->beautify_seconds( $report->{$day}->{_total} );
 
             $table->add(@row);
         }
@@ -654,10 +686,10 @@ sub _load_attribs_report {
     );
     $meta->add_attribute(
         'group' => {
-            isa           => enum( [qw(project week)] ),
+            isa           => enum( [qw(project week day)] ),
             is            => 'ro',
             default       => 'project',
-            documentation => 'Genereta Report by week or project.'
+            documentation => 'Genereta Report by day, week, or project.'
         }
     );
 }
