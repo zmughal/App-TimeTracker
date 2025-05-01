@@ -269,7 +269,7 @@ sub cmd_report {
         my $time    = $task->seconds // $task->_build_seconds;
         my $project = $task->project;
 
-        if ( $time >= 60 * 60 * 8 ) {
+        if ( $time >= 60 * 60 * 15 ) {
             say "Found dubious trackfile: " . $file->stringify;
             say "  Are you sure you worked "
                 . $self->beautify_seconds($time)
