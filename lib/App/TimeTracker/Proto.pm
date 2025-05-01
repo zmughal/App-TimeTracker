@@ -222,10 +222,15 @@ sub load_config {
 
 sub _write_config_file_locations {
     my ( $self, $cfl ) = @_;
-    my $fh = $self->home->file('projects.json')->openw;
-    print $fh $self->json_decoder->encode( $cfl
+    my $projects_file = $self->home->file('projects.json');
+    my $in_contents = $projects_file->slurp;
+    my $out_contents = $self->json_decoder->encode( $cfl
             || $self->config_file_locations );
-    close $fh;
+    if( $in_contents ne $out_contents ) {
+        my $fh = $projects_file->openw;
+        print $fh $out_contents;
+        close $fh;
+    }
 }
 
 sub slurp_config {
